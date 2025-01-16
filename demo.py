@@ -41,5 +41,16 @@ for index, row in data.iterrows():
         current_index_required[subject] = teacher
     teacher_required[index] = current_index_required
 
+grade_teacher = {}
+for index, row in data.iterrows():
+    current_grade_teacher = []
+    for subject in subject_title_list:
+        if pd.isna(row[subject]):
+            continue
+        teacher = row[subject]
+        if teacher not in current_grade_teacher:
+            current_grade_teacher.append(teacher)
+    grade_teacher[index] = current_grade_teacher
+
 # 求解
 plan(teacher_subjects, subjects_required, teacher_required)
