@@ -262,7 +262,7 @@ def plan(teacher_subjects, subjects_required, teacher_required={}):
                              teacher_afternoon[teacher, day].Not()]).OnlyEnforceIf(time_block_penalty.Not())
 
             time_block_penalties.append(time_block_penalty)
-    # === 第二部分：特定科目时间优先级优化 ===
+    # === 第二部分：周1、3、5语文尽量靠前，周2、4、6英语尽量靠前 ===
     subject_time_costs = []
 
     for class_ in class_list:
