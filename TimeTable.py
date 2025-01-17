@@ -298,6 +298,37 @@ def plan(teacher_subjects, subjects_required, teacher_required={}):
 
     # 总体优化目标：最小化加权和
     model.Minimize(time_block_cost + subject_time_total_cost)
+
+    # 约束条件，尽量避免在周六安排连堂课
+    # 创建用于记录惩罚变量的列表
+    penalty = {}  # 用于存储每个班级和课程的惩罚变量
+    penalty_weight = 100  # 惩罚权重
+
+    for class_ in class_list:
+        for subject in subject_list:
+            # 正确统计每个时段的课程情况
+            saturday_classes = []
+            for period in range(9):
+                period_sum = []
+                for teacher in teacher_list:
+                    period_sum.append(x[teacher, class_, 5, period, subject])
+                # 每个时段最多只有一节课
+                saturday_classes.append(sum(period_sum))
+
+            # 创建布尔惩罚变量
+            penalty[class_, subject] = model.NewBoolVar(f"penalty[{class_}, {subject}]")
+
+            # 正确的布尔约束：当课程数量>=2时，penalty为1；否则为0
+            model.Add(sum(saturday_classes) >= 2).OnlyEnforceIf(penalty[class_, subject])
+            model.Add(sum(saturday_classes) < 2).OnlyEnforceIf(penalty[class_, subject].Not())
+
+    # 目标函数：最小化惩罚项的总和
+    model.Minimize(sum(penalty[class_, subject] for class_ in class_list for subject in subject_list) * penalty_weight)
+
+    # [Rest of the code remains the same]
+
+
+
     # 求解
     solver = cp_model.CpSolver()
 
