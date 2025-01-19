@@ -320,7 +320,8 @@ def plan(teacher_subjects, subjects_required, teacher_required={}):
             print("Feasible solution")
 
         # 求解结果
-        df_dict = {}
+        df_class_dict = {}
+        df_teacher_dict = {}
 
         # 创建星期和课时
         weekdays = ["周一", "周二", "周三", "周四", "周五", "周六"]
@@ -328,7 +329,10 @@ def plan(teacher_subjects, subjects_required, teacher_required={}):
 
         # 为每个班级创建一个 df
         for class_ in class_list:
-            df_dict[class_] = pd.DataFrame(index=periods, columns=weekdays)
+            df_class_dict[class_] = pd.DataFrame(index=periods, columns=weekdays)
+        # 为每个教师创建一个df
+        for teacher in teacher_list:
+            df_teacher_dict[teacher] = pd.DataFrame(index=periods, columns=weekdays)
 
         # 解析结果
         for teacher in teacher_list:
@@ -337,13 +341,18 @@ def plan(teacher_subjects, subjects_required, teacher_required={}):
                     for period in range(9):
                         for subject in subject_list:
                             if (solver.Value(x[teacher, class_, day, period, subject]) == 1):
-                                df_dict[class_].loc[periods[period], weekdays[day]] = f"{subject}（{teacher}）"
+                                df_class_dict[class_].loc[periods[period], weekdays[day]] = f"{subject}（{teacher}）"
+                                df_teacher_dict[teacher].loc[periods[period], weekdays[day]] = f"{subject}（{class_}）"
 
         # 处理结果，每个 df 一个 sheet
-        with pd.ExcelWriter("排课结果.xlsx") as writer:
+        with pd.ExcelWriter("排课结果_班级.xlsx") as writer:
             # 将每个DataFrame写入不同的sheet
-            for class_, df in df_dict.items():
+            for class_, df in df_class_dict.items():
                 df.to_excel(writer, sheet_name=class_)
+        # 处理结果，教师课程导出
+        with pd.ExcelWriter("排课结果_教师.xlsx") as writer:
+            for teacher, df in df_teacher_dict.items():
+                df.to_excel(writer, sheet_name=teacher)
 
     else:
         print("No optimal solution found.")
