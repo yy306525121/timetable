@@ -2,7 +2,7 @@ import pandas as pd
 from ortools.sat.python import cp_model
 
 
-def plan(teacher_subjects, subjects_required, teacher_required={}):
+def plan(teacher_subjects, subjects_required, teacher_required={}, confirm_courses=[], no_courses=[]):
     # 教师
     teacher_list = list(teacher_subjects.keys())
 
@@ -29,6 +29,14 @@ def plan(teacher_subjects, subjects_required, teacher_required={}):
                             f"x[{teacher}, {class_}, {day}, {period}, {subject}]"
                         )
     # model.Add(x['郑成功', '高三1班', 3, 8, '体育'] == 1)
+    # 预排
+    if len(confirm_courses) > 0:
+        for confirm_course in confirm_courses:
+            model.Add(x[confirm_course.get('teacher_name'), confirm_course.get('class'), confirm_course.get('week'), confirm_course.get('sort'), confirm_course.get('subject')] == 1)
+    # 禁止排课
+    if len(no_courses) > 0:
+        for no_course in no_courses:
+            model.Add(x[no_course.get('teacher_name'), no_course.get('class'), no_course.get('week'), no_course.get('sort'), no_course.get('subject')] == 0)
 
     # 辅助变量：是否和下一节课连续
     consecutive = {}
@@ -187,32 +195,6 @@ def plan(teacher_subjects, subjects_required, teacher_required={}):
                     # 3. 不能在第5节和第6节安排连续的两节课
                     model.Add(x[teacher, class_, day, 4, subject] + x[teacher, class_, day, 5, subject] <= 1)
 
-    # 约束条件，尽量避免在周六安排连堂课
-    # 创建用于记录惩罚变量的列表
-    penalty = {}  # 用于存储每个班级和课程的惩罚变量
-    penalty_weight = 100  # 惩罚权重
-
-    for class_ in class_list:
-        for subject in subject_list:
-            # 正确统计每个时段的课程情况
-            saturday_classes = []
-            for period in range(9):
-                period_sum = []
-                for teacher in teacher_list:
-                    period_sum.append(x[teacher, class_, 5, period, subject])
-                # 每个时段最多只有一节课
-                saturday_classes.append(sum(period_sum))
-
-            # 创建布尔惩罚变量
-            penalty[class_, subject] = model.NewBoolVar(f"penalty[{class_}, {subject}]")
-
-            # 正确的布尔约束：当课程数量>=2时，penalty为1；否则为0
-            model.Add(sum(saturday_classes) >= 2).OnlyEnforceIf(penalty[class_, subject])
-            model.Add(sum(saturday_classes) < 2).OnlyEnforceIf(penalty[class_, subject].Not())
-
-    # 目标函数：最小化惩罚项的总和
-    model.Minimize(sum(penalty[class_, subject] for class_ in class_list for subject in subject_list) * penalty_weight)
-
     # 约束条件，周1、3、5语文尽量靠前，周2、4、6英语尽量靠前
     # objective_terms = []
     # for class_ in class_list:
@@ -230,7 +212,7 @@ def plan(teacher_subjects, subjects_required, teacher_required={}):
     # model.minimize(sum(objective_terms))
 
 
-    # 约束条件：教师当天的课程尽量全部在上午或全部在下午
+    # 约束条件：教师当天的课程尽量全部在上午或全部在下午，并且周1、3、5语文尽量靠前，周2、4、6英语尽量靠前
     morning_periods = range(5) # 0-4 为上午时间段
     afternoon_periods = range(5, 9)  # 5-8 为下午时间段
     time_block_penalties = []
