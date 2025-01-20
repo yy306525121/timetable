@@ -288,21 +288,10 @@ def plan(teacher_subjects, subjects_required, teacher_required={}):
                                 model.Add(cost == period).OnlyEnforceIf(x[teacher, class_, day, period, subject])
                                 model.Add(cost == 0).OnlyEnforceIf(x[teacher, class_, day, period, subject].Not())
                                 subject_time_costs.append(cost)
-
-    # === 组合两个优化目标 ===
-    # 将时间块惩罚转换为整数值并设置权重
-    time_block_cost = sum(time_block_penalties) * 100  # 给较大权重确保这是主要优化目标
-
-    # 科目时间优化代价
-    subject_time_total_cost = sum(subject_time_costs)
-
-    # 总体优化目标：最小化加权和
-    model.Minimize(time_block_cost + subject_time_total_cost)
-
-    # 约束条件，尽量避免在周六安排连堂课
+    # === 第三部分：尽量避免在周六安排连堂课
     # 创建用于记录惩罚变量的列表
     penalty = {}  # 用于存储每个班级和课程的惩罚变量
-    penalty_weight = 100  # 惩罚权重
+    penalty_weight = 10  # 惩罚权重
 
     for class_ in class_list:
         for subject in subject_list:
@@ -323,7 +312,20 @@ def plan(teacher_subjects, subjects_required, teacher_required={}):
             model.Add(sum(saturday_classes) < 2).OnlyEnforceIf(penalty[class_, subject].Not())
 
     # 目标函数：最小化惩罚项的总和
-    model.Minimize(sum(penalty[class_, subject] for class_ in class_list for subject in subject_list) * penalty_weight)
+    # model.Minimize()
+
+    # === 组合两个优化目标 ===
+    # 将时间块惩罚转换为整数值并设置权重
+    time_block_cost = sum(time_block_penalties)  # 给较大权重确保这是主要优化目标
+
+    # 科目时间优化代价
+    subject_time_total_cost = sum(subject_time_costs) * 100
+
+    # 最小化
+    not_in_saturday = sum(penalty[class_, subject] for class_ in class_list for subject in subject_list) * penalty_weight
+
+    # 总体优化目标：最小化加权和
+    model.Minimize(time_block_cost + subject_time_total_cost + not_in_saturday)
 
     # [Rest of the code remains the same]
 
